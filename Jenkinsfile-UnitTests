@@ -195,23 +195,7 @@ pipeline {
             echo '========================================='
             echo '🧹 LIMPIEZA POST-BUILD'
             echo '========================================='
-
-            script {
-                // Mostrar resumen final
-                def testResults = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
-                if (testResults) {
-                    echo """
-                    ╔════════════════════════════════════════╗
-                    ║     RESUMEN FINAL DE PRUEBAS          ║
-                    ╠════════════════════════════════════════╣
-                    ║ Total:    ${testResults.totalCount}                        ║
-                    ║ Exitosos: ${testResults.passCount}                        ║
-                    ║ Fallidos: ${testResults.failCount}                        ║
-                    ║ Omitidos: ${testResults.skipCount}                        ║
-                    ╚════════════════════════════════════════╝
-                    """
-                }
-            }
+            echo '✅ Pipeline ejecutado completamente'
         }
 
         success {
