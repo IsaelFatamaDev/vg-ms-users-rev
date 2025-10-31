@@ -6,6 +6,11 @@ pipeline {
         jdk 'JDK-17'
     }
 
+    environment {
+        SLACK_CHANNEL = '#jenkins-notifications'
+        SLACK_TOKEN = credentials('slack-token')
+    }
+
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
         timeout(time: 20, unit: 'MINUTES')
@@ -203,7 +208,6 @@ pipeline {
             echo 'Todas las pruebas unitarias pasaron correctamente!'
 
             script {
-                // Enviar notificación de éxito
                 def buildDuration = currentBuild.durationString.replace(' and counting', '')
                 echo """
                 ════════════════════════════════════════
@@ -215,12 +219,61 @@ pipeline {
                 Alcance: ${params.TEST_SCOPE}
                 ════════════════════════════════════════
                 """
+
+                // Notificación a Slack
+                def testResultAction = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
+                def totalTests = testResultAction ? testResultAction.totalCount : 'N/A'
+                def passedTests = testResultAction ? testResultAction.passCount : 'N/A'
+
+                slackSend(
+                    channel: env.SLACK_CHANNEL,
+                    color: 'good',
+                    message: """
+✅ *BUILD EXITOSO* - ${env.JOB_NAME}
+
+*Build:* #${env.BUILD_NUMBER}
+*Duración:* ${buildDuration}
+*Alcance:* ${params.TEST_SCOPE}
+*Tests Ejecutados:* ${totalTests}
+*Tests Exitosos:* ${passedTests}
+
+<${env.BUILD_URL}|Ver detalles del build>
+<${env.BUILD_URL}testReport|Ver reporte de tests>
+<${env.BUILD_URL}jacoco|Ver cobertura de código>
+                    """.trim(),
+                    tokenCredentialId: 'slack-token'
+                )
             }
         }
 
         unstable {
             echo '⚠️⚠️⚠️ BUILD INESTABLE ⚠️⚠️⚠️'
             echo 'Algunas pruebas fallaron pero el build continuó.'
+
+            script {
+                def buildDuration = currentBuild.durationString.replace(' and counting', '')
+                def testResultAction = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
+                def totalTests = testResultAction ? testResultAction.totalCount : 'N/A'
+                def failedTests = testResultAction ? testResultAction.failCount : 'N/A'
+
+                slackSend(
+                    channel: env.SLACK_CHANNEL,
+                    color: 'warning',
+                    message: """
+⚠️ *BUILD INESTABLE* - ${env.JOB_NAME}
+
+*Build:* #${env.BUILD_NUMBER}
+*Duración:* ${buildDuration}
+*Alcance:* ${params.TEST_SCOPE}
+*Tests Totales:* ${totalTests}
+*Tests Fallidos:* ${failedTests}
+
+<${env.BUILD_URL}|Ver detalles del build>
+<${env.BUILD_URL}testReport|Ver tests fallidos>
+                    """.trim(),
+                    tokenCredentialId: 'slack-token'
+                )
+            }
         }
 
         failure {
@@ -239,6 +292,29 @@ pipeline {
                 Alcance: ${params.TEST_SCOPE}
                 ════════════════════════════════════════
                 """
+
+                // Notificación a Slack
+                slackSend(
+                    channel: env.SLACK_CHANNEL,
+                    color: 'danger',
+                    message: """
+❌ *BUILD FALLIDO* - ${env.JOB_NAME}
+
+*Build:* #${env.BUILD_NUMBER}
+*Duración:* ${buildDuration}
+*Alcance:* ${params.TEST_SCOPE}
+*Estado:* FAILURE
+
+*Posibles causas:*
+• Error de compilación
+• Fallos en pruebas unitarias
+• Error en la configuración
+
+<${env.BUILD_URL}console|Ver logs completos>
+<${env.BUILD_URL}testReport|Ver reporte de tests>
+                    """.trim(),
+                    tokenCredentialId: 'slack-token'
+                )
             }
         }
 
