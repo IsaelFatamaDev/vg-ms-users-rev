@@ -37,10 +37,27 @@ pipeline {
             steps {
                 echo '⚙️ Compilando el proyecto...'
                 sh '''
-                    mvn clean compile -DskipTests \
+                    mvn clean compile \
                         -Dmaven.compiler.source=17 \
                         -Dmaven.compiler.target=17
                 '''
+            }
+        }
+
+        stage('🧪 Ejecutar Tests') {
+            steps {
+                echo '🧪 Ejecutando tests y generando reporte de cobertura...'
+                sh '''
+                    mvn test jacoco:report \
+                        -Dmaven.compiler.source=17 \
+                        -Dmaven.compiler.target=17
+                '''
+            }
+            post {
+                always {
+                    junit '**/target/surefire-reports/*.xml'
+                    echo '📊 Reporte JaCoCo generado en: target/site/jacoco/'
+                }
             }
         }
 
