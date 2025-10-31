@@ -1,0 +1,201 @@
+pipeline {
+    agent any
+
+    tools {
+        jdk 'JDK17'
+        maven 'Maven3'
+    }
+
+    environment {
+        SONAR_HOST_URL = 'http://sonarqube:9000'
+        SONAR_TOKEN = credentials('sonarqube-token')
+        SLACK_CHANNEL = '#jenkins-notifications'
+        SLACK_TOKEN = credentials('Slack-Tokencito')
+        PROJECT_KEY = 'vg-ms-users-rev'
+        PROJECT_NAME = 'VG MS Users Rev'
+    }
+
+    stages {
+        stage('🔍 Checkout') {
+            steps {
+                echo '📥 Obteniendo código fuente...'
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+                    env.GIT_BRANCH_NAME = sh(
+                        script: "git rev-parse --abbrev-ref HEAD",
+                        returnStdout: true
+                    ).trim()
+                }
+            }
+        }
+
+        stage('🔧 Compilar') {
+            steps {
+                echo '⚙️ Compilando el proyecto...'
+                sh '''
+                    mvn clean compile -DskipTests \
+                        -Dmaven.compiler.source=17 \
+                        -Dmaven.compiler.target=17
+                '''
+            }
+        }
+
+        stage('📊 Análisis SonarQube') {
+            steps {
+                echo '🔍 Ejecutando análisis de SonarQube...'
+                withSonarQubeEnv('SonarQube-Server') {
+                    sh """
+                        mvn sonar:sonar \
+                            -Dsonar.projectKey=${PROJECT_KEY} \
+                            -Dsonar.projectName='${PROJECT_NAME}' \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.login=${SONAR_TOKEN} \
+                            -Dsonar.java.source=17 \
+                            -Dsonar.java.binaries=target/classes \
+                            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+                    """
+                }
+                echo '✅ Análisis de SonarQube completado'
+            }
+        }
+
+        stage('🚦 Quality Gate') {
+            steps {
+                echo '⏳ Esperando resultado del Quality Gate...'
+                timeout(time: 5, unit: 'MINUTES') {
+                    script {
+                        def qg = waitForQualityGate()
+                        echo "📋 Estado del Quality Gate: ${qg.status}"
+
+                        if (qg.status != 'OK') {
+                            env.QG_STATUS = 'FAILED'
+                            error "❌ Quality Gate falló: ${qg.status}"
+                        } else {
+                            env.QG_STATUS = 'PASSED'
+                            echo '✅ Quality Gate aprobado'
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                echo '🎉 Pipeline completado exitosamente'
+                try {
+                    slackSend(
+                        channel: env.SLACK_CHANNEL,
+                        color: 'good',
+                        message: """
+*✅ Pipeline SonarQube - EXITOSO*
+
+*Proyecto:* ${PROJECT_NAME}
+*Build:* #${env.BUILD_NUMBER}
+*Branch:* ${env.GIT_BRANCH_NAME}
+*Commit:* ${env.GIT_COMMIT_SHORT}
+
+*📊 Análisis SonarQube*
+• Estado: Completado ✅
+• Quality Gate: ${env.QG_STATUS} ✅
+
+*🔗 Enlaces:*
+<${env.BUILD_URL}|Ver Build>
+<${SONAR_HOST_URL}/dashboard?id=${PROJECT_KEY}|Ver Dashboard SonarQube>
+
+*⏱ Duración:* ${currentBuild.durationString.replace(' and counting', '')}
+                        """.trim(),
+                        tokenCredentialId: 'Slack-Tokencito'
+                    )
+                } catch (Exception e) {
+                    echo "⚠️ No se pudo enviar notificación a Slack: ${e.message}"
+                    echo "   Verifica que el plugin de Slack esté instalado y la credencial 'Slack-Tokencito' configurada"
+                }
+            }
+        }
+
+        unstable {
+            script {
+                echo '⚠️ Build inestable'
+                try {
+                    slackSend(
+                        channel: env.SLACK_CHANNEL,
+                        color: 'warning',
+                        message: """
+*⚠️ Pipeline SonarQube - INESTABLE*
+
+*Proyecto:* ${PROJECT_NAME}
+*Build:* #${env.BUILD_NUMBER}
+*Branch:* ${env.GIT_BRANCH_NAME}
+*Commit:* ${env.GIT_COMMIT_SHORT}
+
+*📊 Análisis SonarQube*
+• Estado: Completado con advertencias ⚠️
+• Quality Gate: ${env.QG_STATUS}
+
+*🔗 Enlaces:*
+<${env.BUILD_URL}|Ver Build>
+<${SONAR_HOST_URL}/dashboard?id=${PROJECT_KEY}|Ver Dashboard SonarQube>
+<${env.BUILD_URL}console|Ver Logs>
+
+*⏱ Duración:* ${currentBuild.durationString.replace(' and counting', '')}
+                        """.trim(),
+                        tokenCredentialId: 'Slack-Tokencito'
+                    )
+                } catch (Exception e) {
+                    echo "⚠️ No se pudo enviar notificación a Slack: ${e.message}"
+                }
+            }
+        }
+
+        failure {
+            script {
+                echo '❌ Build falló'
+                try {
+                    slackSend(
+                        channel: env.SLACK_CHANNEL,
+                        color: 'danger',
+                        message: """
+*❌ Pipeline SonarQube - FALLIDO*
+
+*Proyecto:* ${PROJECT_NAME}
+*Build:* #${env.BUILD_NUMBER}
+*Branch:* ${env.GIT_BRANCH_NAME}
+*Commit:* ${env.GIT_COMMIT_SHORT}
+
+*📊 Estado del Análisis*
+• Compilación: ${currentBuild.result}
+• Quality Gate: ${env.QG_STATUS ?: 'NO EJECUTADO'}
+
+*🔍 Posibles causas:*
+• Error de compilación
+• Quality Gate rechazado
+• Timeout en análisis de SonarQube
+• Error de conexión con SonarQube
+
+*🔗 Enlaces:*
+<${env.BUILD_URL}console|Ver Logs Completos>
+<${SONAR_HOST_URL}/dashboard?id=${PROJECT_KEY}|Ver Dashboard SonarQube>
+
+*⏱ Duración:* ${currentBuild.durationString.replace(' and counting', '')}
+                        """.trim(),
+                        tokenCredentialId: 'Slack-Tokencito'
+                    )
+                } catch (Exception e) {
+                    echo "⚠️ No se pudo enviar notificación a Slack: ${e.message}"
+                    echo "   Verifica que la credencial 'Slack-Tokencito' esté configurada en Jenkins"
+                }
+            }
+        }
+
+        cleanup {
+            echo '🧹 Limpiando workspace temporal...'
+            // cleanWs() // Descomentar si quieres limpiar el workspace
+        }
+    }
+}
