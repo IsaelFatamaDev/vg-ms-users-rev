@@ -1,0 +1,49 @@
+spring:
+     main:
+          lazy-initialization: true
+
+     jpa:
+          show-sql: false
+
+     data:
+          mongodb:
+               options:
+                    heartbeat-frequency: 30000
+                    server-selection-timeout: 2000
+
+     reactor:
+          netty:
+               pool:
+                    max-connections: 20
+                    acquire-timeout: 2000
+                    max-idle-time: 3s
+
+server:
+     undertow:
+          io-threads: 2
+          worker-threads: 8
+          buffer-size: 512
+
+management:
+     endpoints:
+          web:
+               expose:
+                    include: health
+     endpoint:
+          health:
+               cache:
+                    time-to-live: 30s
+     metrics:
+          enabled: false
+     server:
+          port: -1
+
+logging:
+     level:
+          root: ERROR
+          "pe.edu.vallegrande": INFO
+          "org.springframework": ERROR
+          "org.mongodb": ERROR
+          "reactor": ERROR
+     pattern:
+          console: "%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"

@@ -1,0 +1,165 @@
+# =============================================================================
+# PERFIL DE PRODUCCIÓN - OPTIMIZADO PARA 250 MiB
+# =============================================================================
+
+spring:
+     # Inicialización lazy para reducir memoria
+     main:
+          lazy-initialization: true
+          banner-mode: off
+
+     # MongoDB con pool reducido
+     data:
+          mongodb:
+               uri: ${SPRING_DATA_MONGODB_URL:mongodb+srv://sistemajass:ZC7O1Ok40SwkfEje@sistemajass.jn6cpoz.mongodb.net/JASS_DIGITAL?retryWrites=true&w=majority&maxPoolSize=10&minPoolSize=2&maxIdleTimeMS=30000&serverSelectionTimeoutMS=3000&heartbeatFrequencyMS=30000}
+               database: ${SPRING_DATA_MONGODB_DATABASE:JASS_DIGITAL}
+               auto-index-creation: false
+               connection-timeout: 3000
+               socket-timeout: 5000
+               options:
+                    max-pool-size: 5
+                    min-pool-size: 1
+                    max-idle-time: 30000
+                    max-connection-life-time: 60000
+                    heartbeat-frequency: 30000
+                    server-selection-timeout: 2000
+
+     # Cache deshabilitado
+     web:
+          resources:
+               cache:
+                    enabled: false
+               add-mappings: false
+
+     # Task execution reducido
+     task:
+          execution:
+               pool:
+                    core-size: 2
+                    max-size: 3
+                    queue-capacity: 50
+
+     # JMX deshabilitado
+     jmx:
+          enabled: false
+
+# =============================================================================
+# REACTOR NETTY OPTIMIZADO
+# =============================================================================
+reactor:
+     netty:
+          # Solo 2 workers para reducir threads
+          ioWorkerCount: 2
+          pool:
+               # Pool de conexiones reducido
+               maxConnections: 50
+               acquireTimeout: 3000
+               maxIdleTime: 10000
+
+# =============================================================================
+# SERVIDOR CON LÍMITES AJUSTADOS
+# =============================================================================
+server:
+     port: ${SERVER_PORT:8085}
+     forward-headers-strategy: native
+
+     # Compresión habilitada
+     compression:
+          enabled: true
+          mime-types: text/html,text/xml,text/plain,text/css,application/json
+          min-response-size: 1024
+
+     # Shutdown graceful
+     shutdown: graceful
+
+     # Límites de request
+     max-http-request-header-size: 8KB
+
+# =============================================================================
+# SERVICIOS EXTERNOS CON TIMEOUTS CORTOS
+# =============================================================================
+external:
+     ms-organizations:
+          name: Microservicio de Organizaciones
+          url: ${EXTERNAL_MS_ORGANIZATIONS_URL:https://lab.vallegrande.edu.pe/jass/ms-organization/api/admin}
+          timeout: 3000
+          max-connections: 10
+
+     ms-infrastructure:
+          name: Microservicio de Infraestructura
+          url: ${EXTERNAL_MS_INFRASTRUCTURE_URL:https://lab.vallegrande.edu.pe/jass/ms-infrastructure}
+          timeout: 3000
+          max-connections: 10
+
+     diacolecta_reniec:
+          name: Diacolecta Reniec
+          url: ${EXTERNAL_DIACOLECTA_RENIEC_URL:https://api.decolecta.com/v1/reniec/dni}
+          token: ${EXTERNAL_DIACOLECTA_RENIEC_TOKEN:sk_9599.oIrh4t4EpOrXo39OTyLINZ6Drrmba6D1}
+          timeout: 3000
+          max-connections: 5
+
+     ms-authentication:
+          name: Microservicio de Autenticación
+          url: ${EXTERNAL_MS_AUTHENTICATION_URL:https://lab.vallegrande.edu.pe/jass/ms-authentication}
+          timeout: 3000
+          retryAttempts: 2
+          max-connections: 10
+
+# =============================================================================
+# ACTUATOR MÍNIMO
+# =============================================================================
+management:
+     endpoints:
+          web:
+               exposure:
+                    include: health
+               base-path: /actuator
+
+     endpoint:
+          health:
+               show-details: never
+               cache:
+                    time-to-live: 30s
+
+     health:
+          defaults:
+               enabled: false
+          mongo:
+               enabled: false
+          diskspace:
+               enabled: false
+
+     metrics:
+          enable:
+               jvm: false
+               process: false
+               system: false
+               http: false
+
+     server:
+          port: -1
+
+# =============================================================================
+# LOGGING MÍNIMO
+# =============================================================================
+logging:
+     level:
+          root: WARN
+          pe.edu.vallegrande: INFO
+          org.springframework: WARN
+          org.springframework.data.mongodb: WARN
+          org.springframework.security: WARN
+          reactor.netty: WARN
+          org.mongodb: WARN
+
+     pattern:
+          console: "%msg%n"
+
+# =============================================================================
+# DOCUMENTACIÓN DESHABILITADA EN PROD
+# =============================================================================
+springdoc:
+     api-docs:
+          enabled: false
+     swagger-ui:
+          enabled: false

@@ -1,0 +1,110 @@
+server:
+     port: ${SERVER_PORT:8085}
+     forward-headers-strategy: native
+     compression:
+          enabled: true
+          mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+          min-response-size: 1024
+     shutdown: graceful
+
+spring:
+     application:
+          name: vg-ms-users
+
+     # CONEXIÓN A LA BASE DE DATOS
+     data:
+          mongodb:
+               uri: ${SPRING_DATA_MONGODB_URL:mongodb+srv://sistemajass:ZC7O1Ok40SwkfEje@sistemajass.jn6cpoz.mongodb.net/JASS_DIGITAL?retryWrites=true&w=majority&maxPoolSize=10&minPoolSize=2&maxIdleTimeMS=30000&serverSelectionTimeoutMS=3000&heartbeatFrequencyMS=30000}
+               database: ${SPRING_DATA_MONGODB_DATABASE:JASS_DIGITAL}
+               auto-index-creation: false
+               connection-timeout: 2000
+               socket-timeout: 3000
+               options:
+                    max-pool-size: 10
+                    min-pool-size: 2
+                    max-idle-time: 60000
+                    max-connection-life-time: 120000
+
+     reactor:
+          netty:
+               pool:
+                    max-connections: 50
+                    acquire-timeout: 3000
+                    max-idle-time: 5s
+                    max-life-time: 15s
+                    evict-in-background: 30s
+
+     jmx:
+          enabled: false
+
+     main:
+          lazy-initialization: true
+
+     task:
+          execution:
+               pool:
+                    core-size: 2
+                    max-size: 4
+                    queue-capacity: 100
+
+     web:
+          resources:
+               cache:
+                    period: 0
+
+# Sección de apis externas
+# Reniec, Organizations, Infrastructure
+external:
+     ms-organizations:
+          name: Microservicio de Organizaciones
+          url: ${EXTERNAL_MS_ORGANIZATIONS_URL:https://lab.vallegrande.edu.pe/jass/ms-organization/api/admin}
+          timeout: 3000
+
+     ms-infrastructure:
+          name: Microservicio de Infraestructura
+          url: ${EXTERNAL_MS_INFRASTRUCTURE_URL:https://lab.vallegrande.edu.pe/jass/ms-infrastructure}
+          timeout: 3000
+
+     diacolecta_reniec:
+          name: Diacolecta Reniec
+          url: ${EXTERNAL_DIACOLECTA_RENIEC_URL:https://api.decolecta.com/v1/reniec/dni}
+          token: ${EXTERNAL_DIACOLECTA_RENIEC_TOKEN:sk_9599.oIrh4t4EpOrXo39OTyLINZ6Drrmba6D1}
+          timeout: 3000
+     ms-authentication:
+          name: Microservicio de Autenticación
+          url: ${EXTERNAL_MS_AUTHENTICATION_URL:https://lab.vallegrande.edu.pe/jass/ms-authentication}
+          timeout: 3000
+          retryAttempts: 3
+
+management:
+     endpoints:
+          web:
+               expose:
+                    include: health,info
+          endpoint:
+               health:
+                    show-details: never
+                    cache:
+                         time-to-live: 10s
+          health:
+               mongo:
+                    enabled: true
+               defaults:
+                    enabled: false
+          metrics:
+               enabled: false
+     server:
+          port: -1
+
+logging:
+     level:
+          root: WARN
+          "pe.edu.vallegrande": info
+          "org.springframework.data.mongodb": WARN
+          "reactor.netty": WARN
+          "org.springframework.security": WARN
+          "org.springframework.security.oauth2": WARN
+          "org.springframework.web": WARN
+
+     pattern:
+          console: "%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"

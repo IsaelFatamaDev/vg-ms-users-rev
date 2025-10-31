@@ -1,0 +1,133 @@
+# =============================================================================
+# .dockerignore ULTRA-OPTIMIZADO - MS-USERS CON JWE
+# =============================================================================
+# Excluye archivos innecesarios para build ultra-liviano y seguro
+# =============================================================================
+
+# DIRECTORIOS DE BUILD (compilación interna)
+target/
+build/
+out/
+dist/
+
+# DEPENDENCIAS Y CACHE (se resuelven en contenedor)
+.m2/
+.gradle/
+node_modules/
+
+# ARCHIVOS DE IDE Y DESARROLLO
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.metadata/
+
+# ARCHIVOS DE SISTEMA OPERATIVO
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# CONTROL DE VERSIONES
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# LOGS Y ARCHIVOS TEMPORALES
+logs/
+*.log
+*.log.*
+*.tmp
+*.temp
+*.pid
+*.seed
+*.pid.lock
+.npm
+.cache/
+
+# DOCUMENTACIÓN Y EJEMPLOS (no necesarios en imagen)
+README.md
+*.md
+docs/
+documentation/
+examples/
+JWE-IMPLEMENTATION-SUMMARY.md
+
+# ARCHIVOS DE CONFIGURACIÓN LOCAL Y SENSIBLES
+.env
+.env.local
+.env.*.local
+application-local.yml
+application-dev.yml
+application-test.yml
+*.properties.local
+
+# TESTING Y COVERAGE
+src/test/
+**/test/
+*.test
+coverage/
+.nyc_output/
+test-results/
+.jest/
+junit.xml
+
+# ARCHIVOS DE DOCKER (no incluir en contexto)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# CERTIFICADOS Y CLAVES DE DESARROLLO (seguridad)
+*.pem
+*.key
+*.crt
+*.jks
+*.p12
+keystore.*
+truststore.*
+
+# ARCHIVOS DE BACKUP Y TEMPORALES
+*.bak
+*.backup
+*.old
+*.orig
+*~
+
+# DEPENDENCIAS NODE (si existen)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ARCHIVOS COMPRIMIDOS
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# SPRING BOOT CACHE
+.spring-boot-devtools-cache
+
+# MAVEN WRAPPER (se copiará explícitamente)
+!mvnw
+!mvnw.cmd
+!.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
+
+# VARIABLES DE ENTORNO LOCALES
+VARIABLES_ENTORNO.txt
+secrets.yml
