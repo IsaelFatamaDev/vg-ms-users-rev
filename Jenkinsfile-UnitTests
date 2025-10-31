@@ -1,0 +1,267 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'Maven-3.9'
+        jdk 'JDK-17'
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timestamps()
+        timeout(time: 20, unit: 'MINUTES')
+    }
+
+    parameters {
+        choice(
+            name: 'TEST_SCOPE',
+            choices: ['ALL_TESTS', 'USER_SERVICE_ONLY', 'SPECIFIC_TEST'],
+            description: 'Alcance de las pruebas a ejecutar'
+        )
+        string(
+            name: 'SPECIFIC_TEST_CLASS',
+            defaultValue: 'UserServiceImplTest',
+            description: 'Clase de prueba específica (solo si TEST_SCOPE = SPECIFIC_TEST)'
+        )
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '========================================='
+                echo '📦 CHECKOUT DEL CÓDIGO FUENTE'
+                echo '========================================='
+                checkout scm
+                script {
+                    echo "Branch: ${env.GIT_BRANCH}"
+                    echo "Commit: ${env.GIT_COMMIT}"
+                }
+            }
+        }
+
+        stage('Environment Info') {
+            steps {
+                echo '========================================='
+                echo '🔧 INFORMACIÓN DEL AMBIENTE'
+                echo '========================================='
+                sh '''
+                    echo "Java Version:"
+                    java -version
+                    echo ""
+                    echo "Maven Version:"
+                    mvn -version
+                    echo ""
+                    echo "Workspace: ${WORKSPACE}"
+                '''
+            }
+        }
+
+        stage('Compile') {
+            steps {
+                echo '========================================='
+                echo '🔨 COMPILANDO PROYECTO'
+                echo '========================================='
+                sh 'mvn clean compile -DskipTests'
+            }
+        }
+
+        stage('Run Unit Tests') {
+            steps {
+                script {
+                    echo '========================================='
+                    echo '🧪 EJECUTANDO PRUEBAS UNITARIAS'
+                    echo '========================================='
+
+                    if (params.TEST_SCOPE == 'ALL_TESTS') {
+                        echo '📊 Ejecutando TODAS las pruebas del proyecto...'
+                        sh 'mvn test'
+                    } else if (params.TEST_SCOPE == 'USER_SERVICE_ONLY') {
+                        echo '📊 Ejecutando pruebas de UserServiceImplTest...'
+                        sh 'mvn test -Dtest=UserServiceImplTest'
+                    } else if (params.TEST_SCOPE == 'SPECIFIC_TEST') {
+                        echo "📊 Ejecutando pruebas de ${params.SPECIFIC_TEST_CLASS}..."
+                        sh "mvn test -Dtest=${params.SPECIFIC_TEST_CLASS}"
+                    }
+                }
+            }
+        }
+
+        stage('Display Test Results') {
+            steps {
+                echo '========================================='
+                echo '📋 RESULTADOS DE LAS PRUEBAS'
+                echo '========================================='
+                script {
+                    sh '''
+                        echo "📊 Resumen de Pruebas Ejecutadas:"
+                        echo "=================================="
+
+                        if [ -d "target/surefire-reports" ]; then
+                            # Buscar archivos XML de resultados
+                            TOTAL_TESTS=$(grep -r 'tests=' target/surefire-reports/*.xml | head -1 | sed 's/.*tests="\\([0-9]*\\)".*/\\1/')
+                            FAILURES=$(grep -r 'failures=' target/surefire-reports/*.xml | head -1 | sed 's/.*failures="\\([0-9]*\\)".*/\\1/')
+                            ERRORS=$(grep -r 'errors=' target/surefire-reports/*.xml | head -1 | sed 's/.*errors="\\([0-9]*\\)".*/\\1/')
+                            SKIPPED=$(grep -r 'skipped=' target/surefire-reports/*.xml | head -1 | sed 's/.*skipped="\\([0-9]*\\)".*/\\1/')
+
+                            echo "✅ Total de pruebas: ${TOTAL_TESTS:-0}"
+                            echo "❌ Fallidas: ${FAILURES:-0}"
+                            echo "⚠️  Errores: ${ERRORS:-0}"
+                            echo "⏭️  Omitidas: ${SKIPPED:-0}"
+                            echo ""
+
+                            # Mostrar archivos de reporte generados
+                            echo "📄 Reportes generados:"
+                            ls -lh target/surefire-reports/*.xml | awk '{print "   " $9 " - " $5}'
+                        else
+                            echo "⚠️  No se encontraron reportes de pruebas"
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Code Coverage Report') {
+            steps {
+                echo '========================================='
+                echo '📊 GENERANDO REPORTE DE COBERTURA'
+                echo '========================================='
+                sh 'mvn jacoco:report'
+
+                script {
+                    sh '''
+                        if [ -f "target/site/jacoco/index.html" ]; then
+                            echo "✅ Reporte de cobertura generado exitosamente"
+                            echo "📂 Ubicación: target/site/jacoco/index.html"
+
+                            # Extraer porcentaje de cobertura si está disponible
+                            if [ -f "target/site/jacoco/jacoco.csv" ]; then
+                                echo ""
+                                echo "📈 Métricas de Cobertura:"
+                                head -2 target/site/jacoco/jacoco.csv
+                            fi
+                        else
+                            echo "⚠️  No se pudo generar el reporte de cobertura"
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Publish Test Reports') {
+            steps {
+                echo '========================================='
+                echo '📤 PUBLICANDO REPORTES'
+                echo '========================================='
+
+                // Publicar resultados de JUnit
+                junit(
+                    testResults: '**/target/surefire-reports/*.xml',
+                    allowEmptyResults: false,
+                    healthScaleFactor: 1.0
+                )
+
+                // Publicar reporte de JaCoCo
+                jacoco(
+                    execPattern: '**/target/jacoco.exec',
+                    classPattern: '**/target/classes',
+                    sourcePattern: '**/src/main/java',
+                    exclusionPattern: '**/config/**,**/dto/**,**/exception/**,**/enums/**',
+                    minimumInstructionCoverage: '50',
+                    minimumBranchCoverage: '40',
+                    minimumComplexityCoverage: '40',
+                    minimumLineCoverage: '50',
+                    minimumMethodCoverage: '50',
+                    minimumClassCoverage: '50'
+                )
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                echo '========================================='
+                echo '📦 ARCHIVANDO ARTEFACTOS'
+                echo '========================================='
+
+                archiveArtifacts(
+                    artifacts: '**/target/surefire-reports/**/*.*,**/target/site/jacoco/**/*.*',
+                    allowEmptyArchive: true,
+                    fingerprint: true
+                )
+            }
+        }
+    }
+
+    post {
+        always {
+            echo '========================================='
+            echo '🧹 LIMPIEZA POST-BUILD'
+            echo '========================================='
+
+            script {
+                // Mostrar resumen final
+                def testResults = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
+                if (testResults) {
+                    echo """
+                    ╔════════════════════════════════════════╗
+                    ║     RESUMEN FINAL DE PRUEBAS          ║
+                    ╠════════════════════════════════════════╣
+                    ║ Total:    ${testResults.totalCount}                        ║
+                    ║ Exitosos: ${testResults.passCount}                        ║
+                    ║ Fallidos: ${testResults.failCount}                        ║
+                    ║ Omitidos: ${testResults.skipCount}                        ║
+                    ╚════════════════════════════════════════╝
+                    """
+                }
+            }
+        }
+
+        success {
+            echo '✅✅✅ PIPELINE EXITOSO ✅✅✅'
+            echo 'Todas las pruebas unitarias pasaron correctamente!'
+
+            script {
+                // Enviar notificación de éxito
+                def buildDuration = currentBuild.durationString.replace(' and counting', '')
+                echo """
+                ════════════════════════════════════════
+                    ✅ BUILD SUCCESS
+                ════════════════════════════════════════
+                Proyecto: ${env.JOB_NAME}
+                Build: #${env.BUILD_NUMBER}
+                Duración: ${buildDuration}
+                Alcance: ${params.TEST_SCOPE}
+                ════════════════════════════════════════
+                """
+            }
+        }
+
+        unstable {
+            echo '⚠️⚠️⚠️ BUILD INESTABLE ⚠️⚠️⚠️'
+            echo 'Algunas pruebas fallaron pero el build continuó.'
+        }
+
+        failure {
+            echo '❌❌❌ BUILD FALLIDO ❌❌❌'
+            echo 'El pipeline falló. Revisar los logs para más detalles.'
+
+            script {
+                def buildDuration = currentBuild.durationString.replace(' and counting', '')
+                echo """
+                ════════════════════════════════════════
+                    ❌ BUILD FAILURE
+                ════════════════════════════════════════
+                Proyecto: ${env.JOB_NAME}
+                Build: #${env.BUILD_NUMBER}
+                Duración: ${buildDuration}
+                Alcance: ${params.TEST_SCOPE}
+                ════════════════════════════════════════
+                """
+            }
+        }
+
+        cleanup {
+            echo 'Limpiando workspace temporal...'
+            // cleanWs() // Descomentar si quieres limpiar el workspace
+        }
+    }
+}
