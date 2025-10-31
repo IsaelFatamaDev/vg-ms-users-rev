@@ -8,7 +8,7 @@ pipeline {
 
     environment {
         SLACK_CHANNEL = '#jenkins-notifications'
-        SLACK_TOKEN = credentials('slack-token')
+        SLACK_TOKEN = credentials('Slack-Tokencito')
     }
 
     options {
@@ -220,29 +220,28 @@ pipeline {
                 ════════════════════════════════════════
                 """
 
-                // Notificación a Slack
-                def testResultAction = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
-                def totalTests = testResultAction ? testResultAction.totalCount : 'N/A'
-                def passedTests = testResultAction ? testResultAction.passCount : 'N/A'
-
-                slackSend(
-                    channel: env.SLACK_CHANNEL,
-                    color: 'good',
-                    message: """
+                // Notificación a Slack (sin acceder a rawBuild por restricciones de seguridad)
+                try {
+                    slackSend(
+                        channel: env.SLACK_CHANNEL,
+                        color: 'good',
+                        message: """
 ✅ *BUILD EXITOSO* - ${env.JOB_NAME}
 
 *Build:* #${env.BUILD_NUMBER}
 *Duración:* ${buildDuration}
 *Alcance:* ${params.TEST_SCOPE}
-*Tests Ejecutados:* ${totalTests}
-*Tests Exitosos:* ${passedTests}
 
 <${env.BUILD_URL}|Ver detalles del build>
 <${env.BUILD_URL}testReport|Ver reporte de tests>
 <${env.BUILD_URL}jacoco|Ver cobertura de código>
-                    """.trim(),
-                    tokenCredentialId: 'slack-token'
-                )
+                        """.trim(),
+                        tokenCredentialId: 'Slack-Tokencito'
+                    )
+                } catch (Exception e) {
+                    echo "⚠️ No se pudo enviar notificación a Slack: ${e.message}"
+                    echo "Verifica que el plugin de Slack esté instalado y la credencial 'Slack-Tokencito' configurada"
+                }
             }
         }
 
@@ -252,27 +251,26 @@ pipeline {
 
             script {
                 def buildDuration = currentBuild.durationString.replace(' and counting', '')
-                def testResultAction = currentBuild.rawBuild.getAction(hudson.tasks.junit.TestResultAction.class)
-                def totalTests = testResultAction ? testResultAction.totalCount : 'N/A'
-                def failedTests = testResultAction ? testResultAction.failCount : 'N/A'
 
-                slackSend(
-                    channel: env.SLACK_CHANNEL,
-                    color: 'warning',
-                    message: """
+                try {
+                    slackSend(
+                        channel: env.SLACK_CHANNEL,
+                        color: 'warning',
+                        message: """
 ⚠️ *BUILD INESTABLE* - ${env.JOB_NAME}
 
 *Build:* #${env.BUILD_NUMBER}
 *Duración:* ${buildDuration}
 *Alcance:* ${params.TEST_SCOPE}
-*Tests Totales:* ${totalTests}
-*Tests Fallidos:* ${failedTests}
 
 <${env.BUILD_URL}|Ver detalles del build>
 <${env.BUILD_URL}testReport|Ver tests fallidos>
-                    """.trim(),
-                    tokenCredentialId: 'slack-token'
-                )
+                        """.trim(),
+                        tokenCredentialId: 'Slack-Tokencito'
+                    )
+                } catch (Exception e) {
+                    echo "⚠️ No se pudo enviar notificación a Slack: ${e.message}"
+                }
             }
         }
 
@@ -294,10 +292,11 @@ pipeline {
                 """
 
                 // Notificación a Slack
-                slackSend(
-                    channel: env.SLACK_CHANNEL,
-                    color: 'danger',
-                    message: """
+                try {
+                    slackSend(
+                        channel: env.SLACK_CHANNEL,
+                        color: 'danger',
+                        message: """
 ❌ *BUILD FALLIDO* - ${env.JOB_NAME}
 
 *Build:* #${env.BUILD_NUMBER}
@@ -312,9 +311,13 @@ pipeline {
 
 <${env.BUILD_URL}console|Ver logs completos>
 <${env.BUILD_URL}testReport|Ver reporte de tests>
-                    """.trim(),
-                    tokenCredentialId: 'slack-token'
-                )
+                        """.trim(),
+                        tokenCredentialId: 'Slack-Tokencito'
+                    )
+                } catch (Exception e) {
+                    echo "⚠️ No se pudo enviar notificación a Slack: ${e.message}"
+                    echo "   Verifica que la credencial 'Slack-Tokencito' esté configurada en Jenkins"
+                }
             }
         }
 
