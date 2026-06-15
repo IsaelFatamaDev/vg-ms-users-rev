@@ -452,5 +452,3 @@ Tu pipeline de Jenkins ahora notificará automáticamente a Slack cada vez que:
 - ✅ Las pruebas pasen exitosamente (verde)
 - ⚠️ Algunas pruebas fallen (amarillo)
 - ❌ El build falle completamente (rojo)
-
-¡Disfruta de tus notificaciones en Slack! 🚀📱
