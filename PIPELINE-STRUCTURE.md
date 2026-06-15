@@ -296,17 +296,3 @@ post {
 
 ---
 
-## 🆘 Soporte
-
-Si encuentras algún problema:
-
-1. 📖 Revisa la documentación: `JENKINS-UNIT-TESTS-SETUP.md`
-2. 🔍 Verifica los logs: `http://localhost:8080/job/vg-ms-users-unit-tests/lastBuild/console`
-3. 🐛 Ejecuta localmente: `mvn test -Dtest=UserServiceImplTest`
-4. 🔧 Verifica herramientas: Jenkins → Manage Jenkins → Global Tool Configuration
-
----
-
-**Última actualización:** 31 de Octubre, 2025
-**Versión del Pipeline:** 1.0
-**Autor:** DevOps Team
